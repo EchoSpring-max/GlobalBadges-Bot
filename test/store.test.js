@@ -21,6 +21,7 @@ test("adds, persists, reloads, and removes a badge", async () => {
     });
 
     assert.equal(store.list("123456789012345678")[0].name, "Founder");
+    assert.deepEqual(store.stats(), { users: 1, badges: 1 });
     assert.match(added.filename, /^[0-9a-f-]+\.png$/);
 
     const reloaded = new BadgeStore(directory);
@@ -29,6 +30,7 @@ test("adds, persists, reloads, and removes a badge", async () => {
 
     assert.deepEqual(await reloaded.remove("123456789012345678", "founder"), added);
     assert.deepEqual(reloaded.list("123456789012345678"), []);
+    assert.deepEqual(reloaded.stats(), { users: 0, badges: 0 });
     assert.deepEqual(JSON.parse(await readFile(path.join(directory, "badges.json"), "utf8")), { users: {} });
 });
 

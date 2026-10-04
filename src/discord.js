@@ -29,7 +29,10 @@ const commands = [
         .addSubcommand(command => command
             .setName("list")
             .setDescription("List a user's global badges")
-            .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true)))
+            .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))),
+    new SlashCommandBuilder()
+        .setName("status")
+        .setDescription("Show the GlobalBadges bot and API status")
 ].map(command => command.toJSON());
 
 export async function registerCommands({ token, clientId, guildId }) {
@@ -41,7 +44,7 @@ export async function registerCommands({ token, clientId, guildId }) {
     console.log(`Registered commands ${guildId ? `for guild ${guildId}` : "globally"}`);
 }
 
-export function createDiscordClient({ store }) {
+export function createDiscordClient({ store, publicBaseUrl }) {
     const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
     client.once(Events.ClientReady, readyClient => {
@@ -49,7 +52,28 @@ export function createDiscordClient({ store }) {
     });
 
     client.on(Events.InteractionCreate, async interaction => {
-        if (!interaction.isChatInputCommand() || interaction.commandName !== "badge") return;
+        if (!interaction.isChatInputCommand()) return;
+
+        if (interaction.commandName === "status") {
+            const stats = store.stats();
+            const uptime = Math.floor(process.uptime());
+            const days = Math.floor(uptime / 86_400);
+            const hours = Math.floor((uptime % 86_400) / 3_600);
+            const minutes = Math.floor((uptime % 3_600) / 60);
+            await interaction.reply({
+                content: [
+                    "**GlobalBadges is online**",
+                    `Users: **${stats.users}**`,
+                    `Badges: **${stats.badges}**`,
+                    `Uptime: **${days}d ${hours}h ${minutes}m**`,
+                    `API: ${publicBaseUrl ?? "Railway domain pending"}`
+                ].join("\n"),
+                ephemeral: true
+            });
+            return;
+        }
+
+        if (interaction.commandName !== "badge") return;
 
         if (!interaction.inGuild() || !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
             await interaction.reply({ content: "You need the Manage Server permission to manage badges.", ephemeral: true });

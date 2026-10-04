@@ -38,6 +38,14 @@ export class BadgeStore {
         return [...(this.data.users[userId] ?? [])];
     }
 
+    stats() {
+        const badgeLists = Object.values(this.data.users);
+        return {
+            users: badgeLists.length,
+            badges: badgeLists.reduce((total, badges) => total + badges.length, 0)
+        };
+    }
+
     async add(userId, name, image) {
         const normalizedName = name.trim();
         if (!normalizedName || normalizedName.length > 80) {

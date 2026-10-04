@@ -7,6 +7,7 @@ A self-hosted Discord badge manager and API for the GlobalBadges Vencord plugin.
 - `/badge add user name image` — assign a custom badge.
 - `/badge remove user name` — remove a custom badge.
 - `/badge list user` — list a user's custom badges.
+- `/status` — show API health, stored user/badge counts, and process uptime.
 
 Commands require the Discord **Manage Server** permission. The bot only requests the `Guilds` gateway intent and does not read messages.
 
