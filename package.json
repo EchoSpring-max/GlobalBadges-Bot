@@ -1,0 +1,19 @@
+{
+  "name": "globalbadges-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted Discord badge manager and GlobalBadges API",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "discord.js": "^14.27.0",
+    "express": "^5.1.0"
+  }
+}
