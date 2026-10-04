@@ -21,7 +21,7 @@ test("adds, persists, reloads, and removes a badge", async () => {
     });
 
     assert.equal(store.list("123456789012345678")[0].name, "Founder");
-    assert.deepEqual(store.stats(), { users: 1, badges: 1 });
+    assert.deepEqual(store.stats(), { users: 1, badges: 1, pendingRequests: 0 });
     assert.match(added.filename, /^[0-9a-f-]+\.png$/);
 
     const reloaded = new BadgeStore(directory);
@@ -30,8 +30,52 @@ test("adds, persists, reloads, and removes a badge", async () => {
 
     assert.deepEqual(await reloaded.remove("123456789012345678", "founder"), added);
     assert.deepEqual(reloaded.list("123456789012345678"), []);
-    assert.deepEqual(reloaded.stats(), { users: 0, badges: 0 });
-    assert.deepEqual(JSON.parse(await readFile(path.join(directory, "badges.json"), "utf8")), { users: {}, admins: [] });
+    assert.deepEqual(reloaded.stats(), { users: 0, badges: 0, pendingRequests: 0 });
+    assert.deepEqual(JSON.parse(await readFile(path.join(directory, "badges.json"), "utf8")), {
+        users: {},
+        admins: [],
+        reviewChannels: {},
+        requests: {}
+    });
+});
+
+test("persists review channels and approves or denies badge requests", async () => {
+    const { directory, store } = await createStore();
+    await store.setReviewChannel("guild-1", "channel-1");
+    assert.equal(store.getReviewChannel("guild-1"), "channel-1");
+
+    const request = await store.createRequest({
+        guildId: "guild-1",
+        requesterId: "123456789012345678",
+        requesterName: "Requester",
+        requesterAvatarUrl: "https://example.com/avatar.png",
+        sourceUrl: "https://example.com/badge.png",
+        name: "Founder",
+        image: { contentType: "image/png", bytes: Buffer.from("png") }
+    });
+    assert.equal(store.stats().pendingRequests, 1);
+    assert.equal(store.getRequest(request.id).name, "Founder");
+
+    const reloaded = new BadgeStore(directory);
+    await reloaded.initialize();
+    assert.equal(reloaded.getReviewChannel("guild-1"), "channel-1");
+    assert.equal((await reloaded.approveRequest(request.id)).name, "Founder");
+    assert.equal(reloaded.getRequest(request.id), null);
+    assert.equal(reloaded.list("123456789012345678")[0].name, "Founder");
+
+    const denied = await reloaded.createRequest({
+        guildId: "guild-1",
+        requesterId: "987654321098765432",
+        requesterName: "Other Requester",
+        requesterAvatarUrl: "https://example.com/avatar.png",
+        sourceUrl: "https://example.com/denied.png",
+        name: "Denied badge",
+        image: { contentType: "image/webp", bytes: Buffer.from("webp") }
+    });
+    assert.equal((await reloaded.denyRequest(denied.id)).name, "Denied badge");
+    assert.equal(reloaded.getRequest(denied.id), null);
+    assert.equal(await reloaded.clearReviewChannel("guild-1"), true);
+    assert.equal(await reloaded.clearReviewChannel("guild-1"), false);
 });
 
 test("persists the delegated admin allowlist", async () => {

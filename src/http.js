@@ -14,7 +14,7 @@ export function createHttpApp({ store, publicBaseUrl, clientId, legacySource = n
             service: "GlobalBadges Bot",
             status: "online",
             inviteUrl: clientId
-                ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=0`
+                ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=52224`
                 : null
         });
     });

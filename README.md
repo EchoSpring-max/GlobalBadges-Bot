@@ -6,15 +6,19 @@ The API merges badges from the preserved legacy GlobalBadges dataset with badges
 
 ## Discord commands
 
+- `/badge request name image` — submit your own badge for moderator review.
 - `/badge add user name image` — assign a custom badge.
 - `/badge remove user name` — remove a custom badge.
 - `/badge list user` — list a user's custom badges.
+- `/review-channel set channel` — choose where badge request embeds are posted.
+- `/review-channel status` — show the configured review channel.
+- `/review-channel clear` — disable public requests in the server.
 - `/status` — show API health, stored user/badge counts, and process uptime.
 - `/admin add user` — allow a user to operate the bot (owner only).
 - `/admin remove user` — revoke a delegated admin (owner only).
 - `/admin list` — list delegated admins (owner only).
 
-All commands are restricted to the owner configured by `OWNER_USER_ID` and users the owner delegates with `/admin add`. Delegated admins cannot manage the allowlist. The bot only requests the `Guilds` gateway intent and does not read messages.
+`/badge request` is available to server members after an owner or delegated admin configures a review channel. Each request creates a persistent preview embed with **Approve** and **Deny** buttons. Only the owner and delegated admins can use those buttons or the remaining management commands. Delegated admins cannot manage the allowlist. The bot only requests the `Guilds` gateway intent and does not read messages.
 
 ## Railway deployment
 
