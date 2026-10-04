@@ -2,6 +2,8 @@
 
 A self-hosted Discord badge manager and API for the GlobalBadges Vencord plugin.
 
+The API merges badges from the preserved legacy GlobalBadges dataset with badges managed by this bot, so existing badges remain visible during the migration.
+
 ## Discord commands
 
 - `/badge add user name image` — assign a custom badge.
@@ -28,6 +30,7 @@ All commands are restricted to the owner configured by `OWNER_USER_ID` and users
    - `OWNER_USER_ID=506499260351774740` — the only user who can manage delegated admins.
    - `DISCORD_GUILD_ID` — optional server ID for immediate command registration while testing.
    - `DATA_DIR=/data`
+   - `LEGACY_DATA_URL` — optional override for the preserved legacy badge dataset.
 
 Railway supplies `PORT` and `RAILWAY_PUBLIC_DOMAIN`. Before a domain exists, the API derives its public URL from each request. The service automatically registers slash commands on startup. Guild commands appear immediately; global commands can take longer to propagate.
 

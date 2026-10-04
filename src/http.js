@@ -1,7 +1,9 @@
 import cors from "cors";
 import express from "express";
 
-export function createHttpApp({ store, publicBaseUrl, clientId }) {
+import { mergeBadgeData } from "./legacy.js";
+
+export function createHttpApp({ store, publicBaseUrl, clientId, legacySource = null }) {
     const app = express();
     app.disable("x-powered-by");
     app.set("trust proxy", 1);
@@ -21,17 +23,18 @@ export function createHttpApp({ store, publicBaseUrl, clientId }) {
         response.json({ status: "ok" });
     });
 
-    app.get("/users/:userId", (request, response) => {
+    app.get("/users/:userId", async (request, response) => {
         if (!/^\d{17,20}$/.test(request.params.userId)) {
             return response.status(400).json({ error: "Invalid Discord user ID" });
         }
 
         const requestBaseUrl = publicBaseUrl || `${request.protocol}://${request.get("host")}`;
-        const badges = store.list(request.params.userId).map(badge => ({
+        const managedBadges = store.list(request.params.userId).map(badge => ({
             name: badge.name,
             badge: `${requestBaseUrl}/badges/${encodeURIComponent(badge.filename)}`
         }));
-        return response.json(badges.length ? { BadgeVault: badges } : {});
+        const legacyBadges = legacySource ? await legacySource.get(request.params.userId) : {};
+        return response.json(mergeBadgeData(legacyBadges, managedBadges));
     });
 
     app.use("/badges", express.static(store.imageDirectory, {

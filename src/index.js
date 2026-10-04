@@ -2,6 +2,7 @@ import path from "node:path";
 
 import { createDiscordClient, registerCommands } from "./discord.js";
 import { createHttpApp, resolvePublicBaseUrl } from "./http.js";
+import { LegacyBadgeSource } from "./legacy.js";
 import { BadgeStore } from "./store.js";
 
 const requiredVariables = ["DISCORD_TOKEN", "DISCORD_CLIENT_ID"];
@@ -14,7 +15,9 @@ const ownerUserId = process.env.OWNER_USER_ID || "506499260351774740";
 if (!/^\d{17,20}$/.test(ownerUserId)) throw new Error("OWNER_USER_ID must be a Discord user ID.");
 const dataDirectory = path.resolve(process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || "./data");
 const publicBaseUrl = resolvePublicBaseUrl(process.env);
+const legacyDataUrl = process.env.LEGACY_DATA_URL || "https://raw.githubusercontent.com/EchoSpring-max/ClientModBadges-API/main";
 const store = new BadgeStore(dataDirectory);
+const legacySource = new LegacyBadgeSource(legacyDataUrl);
 await store.initialize();
 
 await registerCommands({
@@ -26,7 +29,7 @@ await registerCommands({
 const discordClient = createDiscordClient({ store, publicBaseUrl, ownerUserId });
 await discordClient.login(process.env.DISCORD_TOKEN);
 
-const app = createHttpApp({ store, publicBaseUrl, clientId: process.env.DISCORD_CLIENT_ID });
+const app = createHttpApp({ store, publicBaseUrl, clientId: process.env.DISCORD_CLIENT_ID, legacySource });
 const server = app.listen(port, "0.0.0.0", () => {
     console.log(`GlobalBadges API listening on port ${port} at ${publicBaseUrl}`);
 });
