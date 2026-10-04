@@ -308,6 +308,11 @@ export function createDiscordClient({ store, ownerUserId }) {
             return;
         }
 
+        if (interaction.commandName === "status" && !isOwner) {
+            await interaction.reply({ content: "Only the bot owner can manage its status.", ephemeral: true });
+            return;
+        }
+
         if (!isAuthorized) {
             await interaction.reply({ content: "You are not authorized to use this bot. Use `/badge request` to submit a badge for review.", ephemeral: true });
             return;
