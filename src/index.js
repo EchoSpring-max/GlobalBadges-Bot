@@ -26,7 +26,7 @@ await registerCommands({
     guildId: process.env.DISCORD_GUILD_ID
 });
 
-const discordClient = createDiscordClient({ store, publicBaseUrl, ownerUserId });
+const discordClient = createDiscordClient({ store, ownerUserId });
 await discordClient.login(process.env.DISCORD_TOKEN);
 
 const app = createHttpApp({ store, publicBaseUrl, clientId: process.env.DISCORD_CLIENT_ID, legacySource });

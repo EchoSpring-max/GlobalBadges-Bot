@@ -35,7 +35,8 @@ test("adds, persists, reloads, and removes a badge", async () => {
         users: {},
         admins: [],
         reviewChannels: {},
-        requests: {}
+        requests: {},
+        botStatus: null
     });
 });
 
@@ -76,6 +77,22 @@ test("persists review channels and approves or denies badge requests", async () 
     assert.equal(reloaded.getRequest(denied.id), null);
     assert.equal(await reloaded.clearReviewChannel("guild-1"), true);
     assert.equal(await reloaded.clearReviewChannel("guild-1"), false);
+});
+
+test("persists the configured bot presence", async () => {
+    const { directory, store } = await createStore();
+    assert.equal(store.getBotStatus(), null);
+    await store.setBotStatus({ text: "Reviewing badges", activity: "watching", presence: "idle" });
+
+    const reloaded = new BadgeStore(directory);
+    await reloaded.initialize();
+    assert.deepEqual(reloaded.getBotStatus(), {
+        text: "Reviewing badges",
+        activity: "watching",
+        presence: "idle"
+    });
+    await reloaded.clearBotStatus();
+    assert.equal(reloaded.getBotStatus(), null);
 });
 
 test("persists the delegated admin allowlist", async () => {

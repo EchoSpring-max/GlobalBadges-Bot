@@ -13,7 +13,9 @@ The API merges badges from the preserved legacy GlobalBadges dataset with badges
 - `/review-channel set channel` — choose where badge request embeds are posted.
 - `/review-channel status` — show the configured review channel.
 - `/review-channel clear` — disable public requests in the server.
-- `/status` — show API health, stored user/badge counts, and process uptime.
+- `/status set text activity presence` — set the bot's Discord presence/activity.
+- `/status show` — show the configured bot presence.
+- `/status clear` — clear the bot's activity and return it to online.
 - `/admin add user` — allow a user to operate the bot (owner only).
 - `/admin remove user` — revoke a delegated admin (owner only).
 - `/admin list` — list delegated admins (owner only).

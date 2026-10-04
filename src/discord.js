@@ -1,5 +1,6 @@
 import {
     ActionRowBuilder,
+    ActivityType,
     ButtonBuilder,
     ButtonStyle,
     ChannelType,
@@ -18,6 +19,12 @@ const REVIEW_BUTTON_PREFIX = "badge-review";
 const PENDING_COLOR = 0xfee75c;
 const APPROVED_COLOR = 0x23a55a;
 const DENIED_COLOR = 0xda373c;
+const ACTIVITY_TYPES = {
+    playing: ActivityType.Playing,
+    watching: ActivityType.Watching,
+    listening: ActivityType.Listening,
+    competing: ActivityType.Competing
+};
 
 const commands = [
     new SlashCommandBuilder()
@@ -62,7 +69,39 @@ const commands = [
             .setDescription("Disable public badge requests in this server")),
     new SlashCommandBuilder()
         .setName("status")
-        .setDescription("Show the GlobalBadges bot and API status"),
+        .setDescription("Manage the bot's Discord presence")
+        .addSubcommand(command => command
+            .setName("set")
+            .setDescription("Set the bot's visible activity and presence")
+            .addStringOption(option => option
+                .setName("text")
+                .setDescription("Activity text shown on the bot's profile")
+                .setMaxLength(128)
+                .setRequired(true))
+            .addStringOption(option => option
+                .setName("activity")
+                .setDescription("How Discord displays the activity")
+                .addChoices(
+                    { name: "Playing", value: "playing" },
+                    { name: "Watching", value: "watching" },
+                    { name: "Listening", value: "listening" },
+                    { name: "Competing", value: "competing" }
+                ))
+            .addStringOption(option => option
+                .setName("presence")
+                .setDescription("The bot's online indicator")
+                .addChoices(
+                    { name: "Online", value: "online" },
+                    { name: "Idle", value: "idle" },
+                    { name: "Do Not Disturb", value: "dnd" },
+                    { name: "Invisible", value: "invisible" }
+                )))
+        .addSubcommand(command => command
+            .setName("show")
+            .setDescription("Show the configured bot presence"))
+        .addSubcommand(command => command
+            .setName("clear")
+            .setDescription("Clear the activity and return the bot to online")),
     new SlashCommandBuilder()
         .setName("admin")
         .setDescription("Manage users allowed to operate GlobalBadges")
@@ -112,6 +151,13 @@ function reviewEmbed(request, { status = "Pending review", reviewer = null } = {
         .setTimestamp(reviewer ? new Date() : new Date(request.createdAt));
 }
 
+function applyBotStatus(client, status) {
+    client.user.setPresence({
+        status: status?.presence ?? "online",
+        activities: status ? [{ name: status.text, type: ACTIVITY_TYPES[status.activity] }] : []
+    });
+}
+
 export async function registerCommands({ token, clientId, guildId }) {
     const rest = new REST({ version: "10" }).setToken(token);
     const route = guildId
@@ -121,10 +167,11 @@ export async function registerCommands({ token, clientId, guildId }) {
     console.log(`Registered commands ${guildId ? `for guild ${guildId}` : "globally"}`);
 }
 
-export function createDiscordClient({ store, publicBaseUrl, ownerUserId }) {
+export function createDiscordClient({ store, ownerUserId }) {
     const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
     client.once(Events.ClientReady, readyClient => {
+        applyBotStatus(readyClient, store.getBotStatus());
         console.log(`Discord bot logged in as ${readyClient.user.tag}`);
     });
 
@@ -294,20 +341,32 @@ export function createDiscordClient({ store, publicBaseUrl, ownerUserId }) {
         }
 
         if (interaction.commandName === "status") {
-            const stats = store.stats();
-            const uptime = Math.floor(process.uptime());
-            const days = Math.floor(uptime / 86_400);
-            const hours = Math.floor((uptime % 86_400) / 3_600);
-            const minutes = Math.floor((uptime % 3_600) / 60);
+            const action = interaction.options.getSubcommand();
+            if (action === "set") {
+                const status = await store.setBotStatus({
+                    text: interaction.options.getString("text", true),
+                    activity: interaction.options.getString("activity") ?? "playing",
+                    presence: interaction.options.getString("presence") ?? "online"
+                });
+                applyBotStatus(client, status);
+                await interaction.reply({
+                    content: `Bot status set to **${status.activity} ${status.text}** with presence **${status.presence}**.`,
+                    ephemeral: true
+                });
+                return;
+            }
+            if (action === "clear") {
+                await store.clearBotStatus();
+                applyBotStatus(client, null);
+                await interaction.reply({ content: "Cleared the bot activity and set its presence to online.", ephemeral: true });
+                return;
+            }
+
+            const status = store.getBotStatus();
             await interaction.reply({
-                content: [
-                    "**GlobalBadges is online**",
-                    `Users: **${stats.users}**`,
-                    `Badges: **${stats.badges}**`,
-                    `Pending requests: **${stats.pendingRequests}**`,
-                    `Uptime: **${days}d ${hours}h ${minutes}m**`,
-                    `API: ${publicBaseUrl ?? "Railway domain pending"}`
-                ].join("\n"),
+                content: status
+                    ? `Current bot status: **${status.activity} ${status.text}** with presence **${status.presence}**.`
+                    : "The bot has no configured activity and is set to online.",
                 ephemeral: true
             });
             return;

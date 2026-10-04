@@ -17,7 +17,7 @@ export class BadgeStore {
         this.imageDirectory = path.join(dataDirectory, "images");
         this.pendingImageDirectory = path.join(dataDirectory, "pending-images");
         this.databasePath = path.join(dataDirectory, "badges.json");
-        this.data = { users: {}, admins: [], reviewChannels: {}, requests: {} };
+        this.data = { users: {}, admins: [], reviewChannels: {}, requests: {}, botStatus: null };
         this.writeQueue = Promise.resolve();
         this.reviewQueue = Promise.resolve();
     }
@@ -33,6 +33,7 @@ export class BadgeStore {
             if (!Array.isArray(stored.admins)) stored.admins = [];
             if (!stored.reviewChannels || typeof stored.reviewChannels !== "object") stored.reviewChannels = {};
             if (!stored.requests || typeof stored.requests !== "object") stored.requests = {};
+            if (!("botStatus" in stored)) stored.botStatus = null;
             this.data = stored;
         } catch (error) {
             if (error.code !== "ENOENT") throw error;
@@ -55,6 +56,21 @@ export class BadgeStore {
 
     getReviewChannel(guildId) {
         return this.data.reviewChannels[guildId] ?? null;
+    }
+
+    getBotStatus() {
+        return this.data.botStatus ? { ...this.data.botStatus } : null;
+    }
+
+    async setBotStatus(status) {
+        this.data.botStatus = { ...status };
+        await this.persist();
+        return this.getBotStatus();
+    }
+
+    async clearBotStatus() {
+        this.data.botStatus = null;
+        await this.persist();
     }
 
     async setReviewChannel(guildId, channelId) {
