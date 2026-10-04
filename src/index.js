@@ -10,6 +10,8 @@ for (const variable of requiredVariables) {
 }
 
 const port = Number(process.env.PORT || 3000);
+const ownerUserId = process.env.OWNER_USER_ID || "506499260351774740";
+if (!/^\d{17,20}$/.test(ownerUserId)) throw new Error("OWNER_USER_ID must be a Discord user ID.");
 const dataDirectory = path.resolve(process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || "./data");
 const publicBaseUrl = resolvePublicBaseUrl(process.env);
 const store = new BadgeStore(dataDirectory);
@@ -21,7 +23,7 @@ await registerCommands({
     guildId: process.env.DISCORD_GUILD_ID
 });
 
-const discordClient = createDiscordClient({ store, publicBaseUrl });
+const discordClient = createDiscordClient({ store, publicBaseUrl, ownerUserId });
 await discordClient.login(process.env.DISCORD_TOKEN);
 
 const app = createHttpApp({ store, publicBaseUrl, clientId: process.env.DISCORD_CLIENT_ID });

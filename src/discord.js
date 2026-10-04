@@ -2,7 +2,6 @@ import {
     Client,
     Events,
     GatewayIntentBits,
-    PermissionFlagsBits,
     REST,
     Routes,
     SlashCommandBuilder
@@ -14,7 +13,6 @@ const commands = [
     new SlashCommandBuilder()
         .setName("badge")
         .setDescription("Manage global profile badges")
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(command => command
             .setName("add")
             .setDescription("Add a global badge to a Discord user")
@@ -32,7 +30,21 @@ const commands = [
             .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))),
     new SlashCommandBuilder()
         .setName("status")
-        .setDescription("Show the GlobalBadges bot and API status")
+        .setDescription("Show the GlobalBadges bot and API status"),
+    new SlashCommandBuilder()
+        .setName("admin")
+        .setDescription("Manage users allowed to operate GlobalBadges")
+        .addSubcommand(command => command
+            .setName("add")
+            .setDescription("Allow a user to manage badges")
+            .addUserOption(option => option.setName("user").setDescription("New GlobalBadges admin").setRequired(true)))
+        .addSubcommand(command => command
+            .setName("remove")
+            .setDescription("Revoke a user's badge-management access")
+            .addUserOption(option => option.setName("user").setDescription("GlobalBadges admin to remove").setRequired(true)))
+        .addSubcommand(command => command
+            .setName("list")
+            .setDescription("List GlobalBadges admins"))
 ].map(command => command.toJSON());
 
 export async function registerCommands({ token, clientId, guildId }) {
@@ -44,7 +56,7 @@ export async function registerCommands({ token, clientId, guildId }) {
     console.log(`Registered commands ${guildId ? `for guild ${guildId}` : "globally"}`);
 }
 
-export function createDiscordClient({ store, publicBaseUrl }) {
+export function createDiscordClient({ store, publicBaseUrl, ownerUserId }) {
     const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
     client.once(Events.ClientReady, readyClient => {
@@ -53,6 +65,46 @@ export function createDiscordClient({ store, publicBaseUrl }) {
 
     client.on(Events.InteractionCreate, async interaction => {
         if (!interaction.isChatInputCommand()) return;
+
+        const isOwner = interaction.user.id === ownerUserId;
+        const isAuthorized = isOwner || store.isAdmin(interaction.user.id);
+
+        if (interaction.commandName === "admin") {
+            if (!isOwner) {
+                await interaction.reply({ content: "Only the bot owner can manage GlobalBadges admins.", ephemeral: true });
+                return;
+            }
+
+            const action = interaction.options.getSubcommand();
+            if (action === "list") {
+                const admins = store.listAdmins();
+                await interaction.reply({
+                    content: admins.length ? `GlobalBadges admins:\n${admins.map(id => `• <@${id}>`).join("\n")}` : "No delegated admins.",
+                    ephemeral: true
+                });
+                return;
+            }
+
+            const user = interaction.options.getUser("user", true);
+            if (user.id === ownerUserId) {
+                await interaction.reply({ content: "The owner always has access and does not need an admin entry.", ephemeral: true });
+                return;
+            }
+
+            const changed = action === "add" ? await store.addAdmin(user.id) : await store.removeAdmin(user.id);
+            await interaction.reply({
+                content: changed
+                    ? `${action === "add" ? "Granted" : "Revoked"} GlobalBadges admin access ${action === "add" ? "to" : "for"} ${user}.`
+                    : `${user} ${action === "add" ? "already has" : "does not have"} GlobalBadges admin access.`,
+                ephemeral: true
+            });
+            return;
+        }
+
+        if (!isAuthorized) {
+            await interaction.reply({ content: "You are not authorized to use this bot.", ephemeral: true });
+            return;
+        }
 
         if (interaction.commandName === "status") {
             const stats = store.stats();
@@ -75,8 +127,8 @@ export function createDiscordClient({ store, publicBaseUrl }) {
 
         if (interaction.commandName !== "badge") return;
 
-        if (!interaction.inGuild() || !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-            await interaction.reply({ content: "You need the Manage Server permission to manage badges.", ephemeral: true });
+        if (!interaction.inGuild()) {
+            await interaction.reply({ content: "Badge commands must be used in a server.", ephemeral: true });
             return;
         }
 

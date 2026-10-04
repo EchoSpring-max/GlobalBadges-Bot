@@ -16,7 +16,7 @@ export class BadgeStore {
         this.dataDirectory = dataDirectory;
         this.imageDirectory = path.join(dataDirectory, "images");
         this.databasePath = path.join(dataDirectory, "badges.json");
-        this.data = { users: {} };
+        this.data = { users: {}, admins: [] };
         this.writeQueue = Promise.resolve();
     }
 
@@ -27,6 +27,7 @@ export class BadgeStore {
             if (!stored || typeof stored !== "object" || !stored.users || typeof stored.users !== "object") {
                 throw new Error("badges.json has an invalid structure");
             }
+            if (!Array.isArray(stored.admins)) stored.admins = [];
             this.data = stored;
         } catch (error) {
             if (error.code !== "ENOENT") throw error;
@@ -44,6 +45,29 @@ export class BadgeStore {
             users: badgeLists.length,
             badges: badgeLists.reduce((total, badges) => total + badges.length, 0)
         };
+    }
+
+    listAdmins() {
+        return [...this.data.admins];
+    }
+
+    isAdmin(userId) {
+        return this.data.admins.includes(userId);
+    }
+
+    async addAdmin(userId) {
+        if (this.isAdmin(userId)) return false;
+        this.data.admins.push(userId);
+        await this.persist();
+        return true;
+    }
+
+    async removeAdmin(userId) {
+        const index = this.data.admins.indexOf(userId);
+        if (index === -1) return false;
+        this.data.admins.splice(index, 1);
+        await this.persist();
+        return true;
     }
 
     async add(userId, name, image) {

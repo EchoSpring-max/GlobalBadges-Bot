@@ -31,7 +31,20 @@ test("adds, persists, reloads, and removes a badge", async () => {
     assert.deepEqual(await reloaded.remove("123456789012345678", "founder"), added);
     assert.deepEqual(reloaded.list("123456789012345678"), []);
     assert.deepEqual(reloaded.stats(), { users: 0, badges: 0 });
-    assert.deepEqual(JSON.parse(await readFile(path.join(directory, "badges.json"), "utf8")), { users: {} });
+    assert.deepEqual(JSON.parse(await readFile(path.join(directory, "badges.json"), "utf8")), { users: {}, admins: [] });
+});
+
+test("persists the delegated admin allowlist", async () => {
+    const { directory, store } = await createStore();
+    assert.equal(await store.addAdmin("987654321098765432"), true);
+    assert.equal(await store.addAdmin("987654321098765432"), false);
+    assert.equal(store.isAdmin("987654321098765432"), true);
+
+    const reloaded = new BadgeStore(directory);
+    await reloaded.initialize();
+    assert.deepEqual(reloaded.listAdmins(), ["987654321098765432"]);
+    assert.equal(await reloaded.removeAdmin("987654321098765432"), true);
+    assert.equal(await reloaded.removeAdmin("987654321098765432"), false);
 });
 
 test("rejects unsafe or duplicate badge input", async () => {

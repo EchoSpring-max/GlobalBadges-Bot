@@ -8,8 +8,11 @@ A self-hosted Discord badge manager and API for the GlobalBadges Vencord plugin.
 - `/badge remove user name` — remove a custom badge.
 - `/badge list user` — list a user's custom badges.
 - `/status` — show API health, stored user/badge counts, and process uptime.
+- `/admin add user` — allow a user to operate the bot (owner only).
+- `/admin remove user` — revoke a delegated admin (owner only).
+- `/admin list` — list delegated admins (owner only).
 
-Commands require the Discord **Manage Server** permission. The bot only requests the `Guilds` gateway intent and does not read messages.
+All commands are restricted to the owner configured by `OWNER_USER_ID` and users the owner delegates with `/admin add`. Delegated admins cannot manage the allowlist. The bot only requests the `Guilds` gateway intent and does not read messages.
 
 ## Railway deployment
 
@@ -22,6 +25,7 @@ Commands require the Discord **Manage Server** permission. The bot only requests
 
    - `DISCORD_TOKEN` — the bot token.
    - `DISCORD_CLIENT_ID` — the Discord application ID.
+   - `OWNER_USER_ID=506499260351774740` — the only user who can manage delegated admins.
    - `DISCORD_GUILD_ID` — optional server ID for immediate command registration while testing.
    - `DATA_DIR=/data`
 
