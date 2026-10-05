@@ -114,3 +114,21 @@ test("rejects unsafe or duplicate badge input", async () => {
     await store.add("123", "Badge", { contentType: "image/png", bytes: Buffer.from("x") });
     await assert.rejects(() => store.add("123", "badge", { contentType: "image/png", bytes: Buffer.from("x") }), /already exists/);
 });
+
+test("edits a badge name and image", async () => {
+    const { directory, store } = await createStore();
+    const original = await store.add("123", "Founder", { contentType: "image/png", bytes: Buffer.from("original") });
+
+    const renamed = await store.edit("123", "founder", { newName: "Early Supporter" });
+    assert.deepEqual(renamed, { name: "Early Supporter", filename: original.filename });
+
+    const replaced = await store.edit("123", "Early Supporter", {
+        image: { contentType: "image/webp", bytes: Buffer.from("replacement") }
+    });
+    assert.equal(replaced.name, "Early Supporter");
+    assert.match(replaced.filename, /^[0-9a-f-]+\.webp$/);
+    assert.notEqual(replaced.filename, original.filename);
+    assert.deepEqual(store.list("123"), [replaced]);
+
+    await assert.rejects(readFile(path.join(directory, "images", original.filename)), /ENOENT/);
+});

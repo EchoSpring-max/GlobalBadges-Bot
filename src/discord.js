@@ -47,6 +47,13 @@ const commands = [
             .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))
             .addStringOption(option => option.setName("name").setDescription("Exact badge name").setMaxLength(80).setRequired(true)))
         .addSubcommand(command => command
+            .setName("edit")
+            .setDescription("Rename a badge or replace its image")
+            .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))
+            .addStringOption(option => option.setName("name").setDescription("Exact current badge name").setMaxLength(80).setRequired(true))
+            .addStringOption(option => option.setName("new-name").setDescription("New badge tooltip/name").setMaxLength(80))
+            .addAttachmentOption(option => option.setName("image").setDescription("Replacement PNG, JPEG, GIF, or WebP up to 8 MB")))
+        .addSubcommand(command => command
             .setName("list")
             .setDescription("List a user's global badges")
             .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))),
@@ -403,6 +410,23 @@ export function createDiscordClient({ store, ownerUserId }) {
                 const removed = await store.remove(user.id, name);
                 await interaction.editReply(removed
                     ? `Removed **${removed.name}** from ${user}.`
+                    : `${user} does not have a badge named **${name.trim()}**.`);
+                return;
+            }
+
+            if (action === "edit") {
+                const name = interaction.options.getString("name", true);
+                const newName = interaction.options.getString("new-name");
+                const attachment = interaction.options.getAttachment("image");
+                if (!newName && !attachment) {
+                    await interaction.editReply("Choose a new badge name, a replacement image, or both.");
+                    return;
+                }
+
+                const image = attachment ? await downloadBadgeImage(attachment.url) : null;
+                const edited = await store.edit(user.id, name, { newName, image });
+                await interaction.editReply(edited
+                    ? `Updated **${edited.name}** for ${user}.`
                     : `${user} does not have a badge named **${name.trim()}**.`);
                 return;
             }

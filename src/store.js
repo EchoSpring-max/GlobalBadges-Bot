@@ -228,11 +228,48 @@ export class BadgeStore {
         return { name: normalizedName, filename };
     }
 
-    validateBadge(name, image) {
-        const normalizedName = name.trim();
-        if (!normalizedName || normalizedName.length > 80) {
-            throw new Error("Badge names must be between 1 and 80 characters.");
+    async edit(userId, name, { newName = null, image = null } = {}) {
+        const existing = this.list(userId);
+        const index = existing.findIndex(badge => badge.name.toLowerCase() === name.trim().toLowerCase());
+        if (index === -1) return null;
+
+        const original = existing[index];
+        const normalizedName = newName === null ? original.name : this.validateBadgeName(newName);
+        if (normalizedName.toLowerCase() !== original.name.toLowerCase()
+            && existing.some(badge => badge.name.toLowerCase() === normalizedName.toLowerCase())) {
+            throw new Error(`A badge named “${normalizedName}” already exists for that user.`);
         }
+
+        let replacementFilename = original.filename;
+        if (image) {
+            this.validateBadge(normalizedName, image);
+            const extension = ALLOWED_CONTENT_TYPES.get(image.contentType.split(";")[0].toLowerCase());
+            replacementFilename = `${randomUUID()}${extension}`;
+            await writeFile(path.join(this.imageDirectory, replacementFilename), image.bytes, { flag: "wx" });
+        }
+
+        const updated = { name: normalizedName, filename: replacementFilename };
+        existing[index] = updated;
+        this.data.users[userId] = existing;
+        try {
+            await this.persist();
+        } catch (error) {
+            existing[index] = original;
+            this.data.users[userId] = existing;
+            if (image) await unlink(path.join(this.imageDirectory, replacementFilename)).catch(() => {});
+            throw error;
+        }
+
+        if (image) {
+            await unlink(path.join(this.imageDirectory, original.filename)).catch(error => {
+                if (error.code !== "ENOENT") console.error("Failed to remove replaced badge image", error);
+            });
+        }
+        return { ...updated };
+    }
+
+    validateBadge(name, image) {
+        const normalizedName = this.validateBadgeName(name);
 
         const contentType = image.contentType?.split(";")[0].toLowerCase();
         if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
@@ -240,6 +277,14 @@ export class BadgeStore {
         }
         if (!image.bytes.length || image.bytes.length > MAX_IMAGE_BYTES) {
             throw new Error("Badge images must be between 1 byte and 8 MB.");
+        }
+        return normalizedName;
+    }
+
+    validateBadgeName(name) {
+        const normalizedName = name.trim();
+        if (!normalizedName || normalizedName.length > 80) {
+            throw new Error("Badge names must be between 1 and 80 characters.");
         }
         return normalizedName;
     }
