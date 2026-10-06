@@ -45,12 +45,17 @@ const commands = [
             .setName("remove")
             .setDescription("Remove one of a user's global badges")
             .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))
-            .addStringOption(option => option.setName("name").setDescription("Exact badge name").setMaxLength(80).setRequired(true)))
+            .addStringOption(option => option.setName("name").setDescription("Choose one of the user's badges").setMaxLength(80).setAutocomplete(true).setRequired(true)))
+        .addSubcommand(command => command
+            .setName("delete")
+            .setDescription("Delete one of a user's global badges")
+            .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))
+            .addStringOption(option => option.setName("name").setDescription("Choose one of the user's badges").setMaxLength(80).setAutocomplete(true).setRequired(true)))
         .addSubcommand(command => command
             .setName("edit")
             .setDescription("Rename a badge or replace its image")
             .addUserOption(option => option.setName("user").setDescription("Badge owner").setRequired(true))
-            .addStringOption(option => option.setName("name").setDescription("Exact current badge name").setMaxLength(80).setRequired(true))
+            .addStringOption(option => option.setName("name").setDescription("Choose one of the user's badges").setMaxLength(80).setAutocomplete(true).setRequired(true))
             .addStringOption(option => option.setName("new-name").setDescription("New badge tooltip/name").setMaxLength(80))
             .addAttachmentOption(option => option.setName("image").setDescription("Replacement PNG, JPEG, GIF, or WebP up to 8 MB")))
         .addSubcommand(command => command
@@ -165,6 +170,14 @@ function applyBotStatus(client, status) {
     });
 }
 
+function badgeNameChoices(store, userId, query) {
+    const search = query.trim().toLocaleLowerCase();
+    return store.list(userId)
+        .filter(badge => !search || badge.name.toLocaleLowerCase().includes(search))
+        .slice(0, 25)
+        .map(badge => ({ name: badge.name.slice(0, 100), value: badge.name }));
+}
+
 export async function registerCommands({ token, clientId, guildId }) {
     const rest = new REST({ version: "10" }).setToken(token);
     const route = guildId
@@ -185,6 +198,20 @@ export function createDiscordClient({ store, ownerUserId }) {
     client.on(Events.InteractionCreate, async interaction => {
         const isOwner = interaction.user.id === ownerUserId;
         const isAuthorized = isOwner || store.isAdmin(interaction.user.id);
+
+        if (interaction.isAutocomplete()) {
+            if (!isAuthorized || interaction.commandName !== "badge") return;
+
+            const subcommand = interaction.options.getSubcommand();
+            const focused = interaction.options.getFocused(true);
+            if (!(["edit", "remove", "delete"].includes(subcommand) && focused.name === "name")) return;
+
+            const user = interaction.options.getUser("user") ?? interaction.user;
+            await interaction.respond(badgeNameChoices(store, user.id, focused.value)).catch(error => {
+                console.error("Badge autocomplete failed", error);
+            });
+            return;
+        }
 
         if (interaction.isButton() && interaction.customId.startsWith(`${REVIEW_BUTTON_PREFIX}:`)) {
             if (!isAuthorized) {
@@ -405,7 +432,7 @@ export function createDiscordClient({ store, ownerUserId }) {
                 return;
             }
 
-            if (action === "remove") {
+            if (action === "remove" || action === "delete") {
                 const name = interaction.options.getString("name", true);
                 const removed = await store.remove(user.id, name);
                 await interaction.editReply(removed
